@@ -1,23 +1,85 @@
-import axios from 'axios';
-import Qs from 'qs'; // 用来处理参数，可不使用，若要使用，npm安装： npm install qs
-axios.defaults.baseURL = 'apiURL'; // 请求的默认域名
-// 添加一个请求拦截器
-axios.interceptors.request.use(config => {
-    config.headers.languagetype = 'CN'; // 举例，加上一个公共头部
-    config.data = Qs.stringify(config.data); // 处理数据，可不写
-    return config;
+import axios from 'axios'
+import qs from 'querystring'
+
+const serverURL = `/${process.env.VUE_APP_CONTEXT}`
+const proxyURL = '/api'
+// const serverURL = '/'
+// const proxyURL = '/mock'
+// const baseURL = process.env.NODE_ENV === 'production' ? serverURL : proxyURL + serverURL
+const baseURL = process.env.NODE_ENV === 'production' ? serverURL : proxyURL
+
+const CONTENT_TYPE = 'Content-Type'
+const urlencodedContentType = 'application/x-www-form-urlencoded;charset=utf-8'
+const jsonContentType = 'application/json;charset=utf-8'
+
+const timeout = 60000
+
+const axiosOptions = {
+  baseURL,
+  timeout,
+  headers: {
+    get: { [CONTENT_TYPE]: urlencodedContentType },
+    post: { [CONTENT_TYPE]: jsonContentType }
   },
-  err => {
-    return Promise.reject(err);
-  });
-//添加一个响应拦截器
-axios.interceptors.response.use(res => {
-  //在这里对返回的数据进行处理
-  console.log(res.data, '网络正常');
-  return res.data;
-}, err => {
-  console.log('网络开了小差！请重试...');
-  return Promise.reject(err);
+  withCredentials: true,
+  transformRequest: [
+    (data) => {
+      return JSON.stringify(data)
+    }
+  ],
+  paramsSerializer (params) {
+    return qs.stringify(params)
+  },
+  validateStatus () {
+    return true
+  },
+  transformResponse: [(data) => {
+    if (typeof data === 'string' && data[0] === '{') {
+      try {
+        data = JSON.parse(data)
+      } catch (e) {
+        console.log(e)
+      }
+    }
+    return data
+  }]
+}
+
+const service = axios.create(axiosOptions)
+
+// 添加请求拦截器
+service.interceptors.request.use((config) => {
+  return config
+}, (error) => {
+  // 错误抛到业务代码
+  console.log(JSON.stringify(error))
+  error.data = {}
+  error.data.code = 999
+  return Promise.reject(error)
 })
 
-export default axios
+// 添加响应拦截器
+service.interceptors.response.use((response) => {
+  const status = response.status
+  if (status < 200 || status >= 300) {
+    if (typeof response.data === 'string') {
+      response.data = { code: status }
+    } else {
+      response.data.code = status
+    }
+  }
+  if (status === 403 || status === '403') {
+    window.location.href = response.data.data.referer
+    return
+  }
+  return response
+}, (error) => {
+  // 错误抛到业务代码
+  console.log(JSON.stringify(error))
+  error.response = {}
+  error.response.data = {}
+  error.response.data.code = '请求超时'
+  return Promise.resolve(error.response)
+})
+
+export default service

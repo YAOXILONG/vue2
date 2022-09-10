@@ -11,9 +11,9 @@
    <!-- <el-button type="primary">主要按钮</el-button> -->
       <el-scrollbar>
        <div class = "case-inside">
-        <div>zheshi1</div>
+        <div @click="getreqquest">zheshi1</div>
         <div>zheshi2</div>
-        <div>zheshi3</div>
+        <!-- <div>zheshi3</div>
         <div>zheshi4</div>
         <div>zheshi5</div>
         <div>zheshi6</div>
@@ -22,9 +22,10 @@
         <div>zheshi9</div>
         <div>zheshi10</div>
         <div>zheshi11</div>
-        <div>zheshi12</div>
+        <div>zheshi12</div> -->
        </div>
       </el-scrollbar>
+      <div>{{result}}</div>
     </div>
 </template>
 
@@ -38,13 +39,28 @@ export default {
   },
   data () {
     return {
-      show: true
+      show: true,
+      result:''
     }
   },
   methods: {
     momentFuc () {
      let day2 = moment().format("YYYY-MM-DDTHH:mm:ss.SSSZ");
      console.log(day2);
+    },
+    getreqquest() {
+this.$axios.post('http://localhost:8080/send', {
+    firstName: 'Fred',
+    lastName: 'Flintstone'
+  })
+      .then(response => {
+        console.log(response, "success");   // 成功的返回     
+        const {data} = response.data
+        this.result = data
+        
+        
+      })
+      .catch(error => console.log(error, "error")); // 失败的返回
     }
 
   }
